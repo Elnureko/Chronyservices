@@ -1,0 +1,38 @@
+---
+- name: Chrony server/client provisioning
+  hosts: webserver1, webserver2, webserver3, database, kubernetes, jenkins, nfsserver, ldap, haproxy, ftp, dnsserver #clientIPadress
+  become: yes
+  vars:
+    - servertype: client
+    - timesources:
+        - 0.centos.pool.ntp.org
+        - 1.centos.pool.ntp.org
+        - 2.centos.pool.ntp.org
+        - 3.centos.pool.ntp.org
+    - allowsubnet: 'allow 192.168.37.1/24'
+    - clientsource0: '192.168.37.77' #ansibleIPadressSERVER
+    - clientsource1: '192.168.37.87'
+  tasks:
+    - name: Make sure package is installed and latest
+      yum:
+        name: chrony
+        state: latest
+    
+    - name: Configure firewalld
+      shell: systemctl disable firewalld --now
+      when: servertype == "server"
+    - name: Copy a config file
+      template:
+        src: chrony.conf.server.j2   ## jinja2
+        dest: /etc/chrony.conf
+      when: servertype == "server"
+    - name: Copy a config file
+      template:
+        src: chrony.conf.client.j2   ## jinja2
+        dest: /etc/chrony.conf
+      when: servertype == "client"
+    - name: Make sure service is restarted and enabled
+      service:
+        name: chronyd
+        state: restarted
+        enabled: yes

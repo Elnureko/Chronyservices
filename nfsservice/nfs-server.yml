@@ -1,0 +1,40 @@
+---
+- hosts: nfsserver
+  become: yes
+  tasks:
+    - name: Disabling Selinux and Firewalld
+      shell: setenforce 0; systemctl disable firewalld --now
+    - name: install nfs-utils and rpcbind packages
+      yum: 
+        name: "{{ packages }}"
+      vars:
+        packages:
+        - nfs-utils
+        - rpcbind
+        state: installed
+    - name: Create a mountable directory if it does not exist
+      file:
+        path: /share
+        state: directory
+        owner: ansible
+        group: ansible
+        mode: '0755'
+
+    - name: enable rpcbind nfslock nfs
+      service:
+        name: "{{ item }}"
+        state: started
+      with_items:
+        - rpcbind
+        - nfs
+    - name: Copy exports file.
+      template:
+        src: /home/ansible/nfsservice/exports.j2
+        dest: /etc/exports
+        owner: ansible
+        group: ansible
+        mode: '0755'
+    - name: Restart NFS
+      shell: systemctl restart nfs-server
+    - name: MOUNT -A
+      shell: exportfs -a

@@ -1,0 +1,42 @@
+---
+- hosts: webserver1, webserver2, webserver3, database, kubernetes, jenkins, ntpservers, ldap, haproxy, ftp, dnsserver
+  become: yes
+  tasks:
+    - name: Disabling Selinux and Firewalld
+      shell: setenforce 0; systemctl disable firewalld --now
+    - name: install nfs-utils and rpcbind packages
+      yum:
+        name: "{{ packages }}"
+      vars:
+        packages:
+        - nfs-utils
+        state: installed
+
+    - name: enable nfs
+      service:
+        name: "{{ item }}"
+        state: started
+      with_items:
+        - nfs-server.service
+
+    
+    - name: Create a mountable directory if it does not exist
+      file:
+        path: /mnt/share
+        state: directory
+        owner: ansible
+        group: ansible
+        mode: '0775'
+
+    - name: mount the nfsshare in client side
+      mount:
+        fstype: nfs
+        opts: defaults
+        dump: null
+        passno: null
+        state: mounted
+        src: 192.168.37.97:/share       ##one share
+        path: /mnt/share
+
+    - name: 
+      shell: exportfs -a
